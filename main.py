@@ -179,7 +179,23 @@ class CigaretteBatteryWidget(QWidget):
 
 
 if __name__ == "__main__":
+    # Detect mode from command-line arguments
+    mode = "overlay"
+    for arg in sys.argv:
+        if arg.startswith("--mode="):
+            mode = arg.split("=")[1]
+
     app = QApplication(sys.argv)
     widget = CigaretteBatteryWidget()
+
+    # Apply the correct window mode
+    from PyQt6.QtCore import Qt
+    flags = Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool
+    if mode == "overlay":
+        flags |= Qt.WindowType.WindowStaysOnTopHint
+
+    widget.setWindowFlags(flags)
+    widget.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
+
     widget.show()
     sys.exit(app.exec())
