@@ -4,14 +4,6 @@ from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QGraphic
 from PyQt6.QtGui import QPixmap, QFont
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
 
-def resource_path(relative_path):
-    """Get absolute path to resource, works for dev and PyInstaller."""
-    if getattr(sys, 'frozen', False):
-        base_path = sys._MEIPASS
-    else:
-        base_path = os.path.dirname(__file__)
-    return os.path.join(base_path, relative_path)
-
 class CigaretteBatteryWidget(QWidget):
     def __init__(self):
         super().__init__()
@@ -40,7 +32,7 @@ class CigaretteBatteryWidget(QWidget):
         self.text_overlay.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
         self.text_overlay.setFont(QFont("Arial", 12, QFont.Weight.Bold))
         self.text_overlay.setStyleSheet("color: white; text-shadow: 1px 1px 2px black;")
-        self.text_overlay.setGeometry(8, 30, 128, 20)
+        self.text_overlay.setGeometry(8, 28, 128, 20)
         
         # Opacity effect for fade animation
         self.opacity_effect = QGraphicsOpacityEffect()
@@ -64,7 +56,7 @@ class CigaretteBatteryWidget(QWidget):
         self.setLayout(layout)
 
         # === Paths ===
-        self.asset_path = resource_path("assets")
+        self.asset_path = os.path.join(os.path.dirname(__file__), "assets")
 
         # === Mode ===
         self.test_mode = False  # Set to True to enable test mode
