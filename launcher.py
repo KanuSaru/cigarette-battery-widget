@@ -1,8 +1,15 @@
-# launcher.py
-import sys
+import sys, os, subprocess
 import subprocess
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel
 from PyQt6.QtCore import Qt
+
+def resource_path(relative_path):
+    """Get absolute path to resource, works for dev and PyInstaller."""
+    if getattr(sys, 'frozen', False):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.dirname(__file__)
+    return os.path.join(base_path, relative_path)
 
 class Launcher(QWidget):
     def __init__(self):
@@ -44,7 +51,11 @@ class Launcher(QWidget):
         self.setLayout(layout)
 
     def launch(self, mode):
-        subprocess.Popen([sys.executable, "main.py", f"--mode={mode}"])
+        if getattr(sys, "frozen", False):
+          exe_path = os.path.join(os.path.dirname(sys.executable), "main.exe")
+          subprocess.Popen([exe_path, f"--mode={mode}"])
+        else:
+            subprocess.Popen([sys.executable, "main.py", f"--mode={mode}"])
         self.close()
 
 if __name__ == "__main__":

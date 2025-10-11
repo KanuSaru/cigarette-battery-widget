@@ -1,10 +1,16 @@
-import sys
-import os
+import sys, os
 import psutil
 from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QGraphicsOpacityEffect
 from PyQt6.QtGui import QPixmap, QFont
 from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
 
+def resource_path(relative_path):
+    """Get absolute path to resource, works for dev and PyInstaller."""
+    if getattr(sys, 'frozen', False):
+        base_path = sys._MEIPASS
+    else:
+        base_path = os.path.dirname(__file__)
+    return os.path.join(base_path, relative_path)
 
 class CigaretteBatteryWidget(QWidget):
     def __init__(self):
@@ -58,7 +64,7 @@ class CigaretteBatteryWidget(QWidget):
         self.setLayout(layout)
 
         # === Paths ===
-        self.asset_path = os.path.join(os.path.dirname(__file__), "assets")
+        self.asset_path = resource_path("assets")
 
         # === Mode ===
         self.test_mode = False  # Set to True to enable test mode
@@ -176,7 +182,6 @@ class CigaretteBatteryWidget(QWidget):
         """Cycle through test battery levels when clicked."""
         self.current_test_index = (self.current_test_index + 1) % len(self.test_levels)
         self.update_battery()
-
 
 if __name__ == "__main__":
     # Detect mode from command-line arguments
