@@ -25,25 +25,42 @@ class Launcher(QWidget):
                 background-color: #666;
             }
         """)
-
         label = QLabel("How do you want to display the widget?")
         label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-
         overlay_btn = QPushButton("Overlay (Always on Top)")
         wallpaper_btn = QPushButton("Wallpaper Mode")
-
         overlay_btn.clicked.connect(lambda: self.launch("overlay"))
         wallpaper_btn.clicked.connect(lambda: self.launch("wallpaper"))
-
         layout = QVBoxLayout()
         layout.addWidget(label)
         layout.addSpacing(10)
         layout.addWidget(overlay_btn)
         layout.addWidget(wallpaper_btn)
         self.setLayout(layout)
-
+    
     def launch(self, mode):
-        subprocess.Popen([sys.executable, "main.py", f"--mode={mode}"])
+        # Desacoplar completamente el proceso de la terminal
+        if sys.platform == "win32":
+            # Windows: usar CREATE_NEW_PROCESS_GROUP y DETACHED_PROCESS
+            DETACHED_PROCESS = 0x00000008
+            subprocess.Popen(
+                [sys.executable, "main.py", f"--mode={mode}"],
+                creationflags=DETACHED_PROCESS | subprocess.CREATE_NEW_PROCESS_GROUP,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                close_fds=True
+            )
+        else:
+            # Linux/Mac: usar start_new_session para crear un nuevo grupo de procesos
+            subprocess.Popen(
+                [sys.executable, "main.py", f"--mode={mode}"],
+                start_new_session=True,
+                stdin=subprocess.DEVNULL,
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL,
+                close_fds=True
+            )
         self.close()
 
 if __name__ == "__main__":
