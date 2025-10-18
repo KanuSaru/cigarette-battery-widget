@@ -12,6 +12,7 @@ A small desktop widget that displays your laptop's battery level using pixelated
 - Two display modes:  
   - **Overlay:** always visible above all windows.  
   - **Wallpaper mode:** stays behind windows, as part of the desktop.  
+- Runs independently: the widget continues running even after closing the terminal or launcher.
 - Minimal, pixel-art inspired design.
 
 ---
@@ -57,9 +58,13 @@ battery_widget/
 2. Choose how you want the widget to appear:
    - **Overlay:** stays on top of all windows.  
    - **Wallpaper mode:** sits behind windows on the desktop.  
-3. The widget will start and display your current battery level.  
-4. You can move it by clicking and dragging.  
-5. Click it again to cycle through test battery levels.
+3. The widget will start and display your current battery level.
+4. Close the launcher and terminal safely — the widget will keep running in the background.
+5. You can move it by clicking and dragging.  
+6. Click it again to cycle through test battery levels.
+
+### Closing the Widget
+To stop the widget, use your system's task manager or process manager to end the `main.py` process.
 
 ---
 
