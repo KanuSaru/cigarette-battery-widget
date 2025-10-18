@@ -17,7 +17,7 @@ class CigaretteBatteryWidget(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
-        # === Create a container to stack image + text ===
+        # Create a container to stack image + text
         self.container = QWidget(self)
         self.container.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
         self.container.setFixedSize(128, 128)
@@ -55,15 +55,15 @@ class CigaretteBatteryWidget(QWidget):
         layout.addWidget(self.container)
         self.setLayout(layout)
 
-        # === Paths ===
+        # Paths 
         self.asset_path = os.path.join(os.path.dirname(__file__), "assets")
 
-        # === Mode ===
+        # Mode 
         self.test_mode = False  # Set to True to enable test mode
         self.test_levels = [0, 25, 50, 75, 100]
         self.current_test_index = 0
 
-        # === Timer ===
+        # Timer
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_battery)
         self.timer.start(5000)
@@ -72,7 +72,7 @@ class CigaretteBatteryWidget(QWidget):
         self.offset = None
 
     def update_battery(self):
-        """Updates the sprite and overlay text."""
+        # Updates the sprite and overlay text.
         if self.test_mode:
             percent = self.test_levels[self.current_test_index]
             # Simulate charging on high levels
@@ -105,7 +105,7 @@ class CigaretteBatteryWidget(QWidget):
         self.handle_glow_animation()
         
     def fade_text_change(self, new_text):
-        """Smooth fade-out, update, fade-in animation for text."""
+        # Smooth fade-out, update, fade-in animation for text.
         self.animation.stop()
 
         # Fade out
@@ -132,7 +132,7 @@ class CigaretteBatteryWidget(QWidget):
         self.animation.start()
         
     def handle_glow_animation(self):
-        """Start or stop the glowing animation depending on charging state."""
+        # Start or stop the glowing animation depending on charging state.
         if self.charging:
             if not self.sprite_animation.state():
                 self.sprite_animation.stop()
@@ -157,7 +157,7 @@ class CigaretteBatteryWidget(QWidget):
             return "cig_0.png"
 
     def mousePressEvent(self, event):
-        """Handle clicks and dragging."""
+        # Handle clicks and dragging.
         if event.button() == Qt.MouseButton.LeftButton:
             # Click → cycle test level
             self.cycle_test_level()
@@ -171,7 +171,7 @@ class CigaretteBatteryWidget(QWidget):
         self.offset = None
 
     def cycle_test_level(self):
-        """Cycle through test battery levels when clicked."""
+        # Cycle through test battery levels when clicked.
         self.current_test_index = (self.current_test_index + 1) % len(self.test_levels)
         self.update_battery()
 
