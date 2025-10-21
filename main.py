@@ -1,15 +1,20 @@
-import sys, os
-import psutil
-from PyQt6.QtWidgets import QApplication, QWidget, QLabel, QVBoxLayout, QGraphicsOpacityEffect
+import sys, os, psutil
+from PyQt6.QtWidgets import (
+    QApplication, QWidget, QLabel, QVBoxLayout,
+    QGraphicsOpacityEffect, QGraphicsDropShadowEffect
+)
 from PyQt6.QtGui import QPixmap, QFont
-from PyQt6.QtCore import Qt, QTimer, QPropertyAnimation, QEasingCurve
+from PyQt6.QtCore import (
+    Qt, QTimer, QPropertyAnimation, QEasingCurve,
+    QSequentialAnimationGroup, QPauseAnimation, QAbstractAnimation
+)
+
+SPRITE_SIZE = 128
 
 class CigaretteBatteryWidget(QWidget):
     def __init__(self):
         super().__init__()
         self.setWindowTitle("Cigarette Battery Widget")
-
-        # Frameless, always-on-top, transparent background
         self.setWindowFlags(
             Qt.WindowType.FramelessWindowHint |
             Qt.WindowType.WindowStaysOnTopHint |
@@ -17,65 +22,69 @@ class CigaretteBatteryWidget(QWidget):
         )
         self.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
 
-        # Create a container to stack image + text
         self.container = QWidget(self)
         self.container.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-        self.container.setFixedSize(128, 128)
-        
-        # Image
+        self.container.setFixedSize(SPRITE_SIZE, SPRITE_SIZE)
+
         self.sprite_label = QLabel(self.container)
         self.sprite_label.setAlignment(Qt.AlignmentFlag.AlignCenter)
-        self.sprite_label.setGeometry(0, 0, 128, 128)
+        self.sprite_label.setGeometry(0, 0, SPRITE_SIZE, SPRITE_SIZE)
 
-        # Text overlay
         self.text_overlay = QLabel(self.container)
         self.text_overlay.setAlignment(Qt.AlignmentFlag.AlignHCenter | Qt.AlignmentFlag.AlignTop)
         self.text_overlay.setFont(QFont("Arial", 12, QFont.Weight.Bold))
-        self.text_overlay.setStyleSheet("color: white; text-shadow: 1px 1px 2px black;")
-        self.text_overlay.setGeometry(8, 28, 128, 20)
-        
-        # Opacity effect for fade animation
+        self.text_overlay.setGeometry(8, 28, SPRITE_SIZE, 20)
+        self.text_overlay.setStyleSheet("color: white;")
+
+        shadow = QGraphicsDropShadowEffect()
+        shadow.setBlurRadius(8)
+        shadow.setOffset(1, 1)
+        shadow.setColor(Qt.GlobalColor.black)
+        self.text_overlay.setGraphicsEffect(shadow)
+
         self.opacity_effect = QGraphicsOpacityEffect()
         self.text_overlay.setGraphicsEffect(self.opacity_effect)
-        self.animation = QPropertyAnimation(self.opacity_effect, b"opacity")
-        self.animation.setDuration(600)  
-        
-        # Sprite glow effect
+
         self.sprite_opacity = QGraphicsOpacityEffect()
         self.sprite_label.setGraphicsEffect(self.sprite_opacity)
-        self.sprite_animation = QPropertyAnimation(self.sprite_opacity, b"opacity")
-        self.sprite_animation.setEasingCurve(QEasingCurve.Type.InOutSine)
-        self.sprite_animation.setDuration(1000)
-        self.sprite_animation.setLoopCount(-1)  # Infinite while charging
 
-        # Main layout
         layout = QVBoxLayout()
         layout.setContentsMargins(5, 5, 5, 5)
         layout.setAlignment(Qt.AlignmentFlag.AlignCenter)
         layout.addWidget(self.container)
         self.setLayout(layout)
 
-        # Paths 
         self.asset_path = os.path.join(os.path.dirname(__file__), "assets")
+        self.sprites = self.load_sprites()
 
-        # Mode 
-        self.test_mode = False  # Set to True to enable test mode
+        self.test_mode = False
         self.test_levels = [0, 25, 50, 75, 100]
         self.current_test_index = 0
 
-        # Timer
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_battery)
         self.timer.start(5000)
 
         self.update_battery()
         self.offset = None
+        self.sprite_animation = None
+
+    def load_sprites(self):
+        names = ["cig_0.png", "cig_25.png", "cig_50.png", "cig_75.png", "cig_full.png"]
+        sprites = {}
+        for name in names:
+            path = os.path.join(self.asset_path, name)
+            if os.path.exists(path):
+                sprites[name] = QPixmap(path).scaled(
+                    SPRITE_SIZE, SPRITE_SIZE,
+                    Qt.AspectRatioMode.KeepAspectRatio,
+                    Qt.TransformationMode.SmoothTransformation
+                )
+        return sprites
 
     def update_battery(self):
-        # Updates the sprite and overlay text.
         if self.test_mode:
             percent = self.test_levels[self.current_test_index]
-            # Simulate charging on high levels
             self.charging = (percent >= 80)
         else:
             battery = psutil.sensors_battery()
@@ -87,96 +96,86 @@ class CigaretteBatteryWidget(QWidget):
                 self.charging = False
 
         sprite_name = self.choose_sprite(percent)
-        sprite_path = os.path.join(self.asset_path, sprite_name)
-
-        if os.path.exists(sprite_path):
-            pixmap = QPixmap(sprite_path)
-            pixmap = pixmap.scaled(
-                128, 128,
-                Qt.AspectRatioMode.KeepAspectRatio,
-                Qt.TransformationMode.FastTransformation
-            )
+        pixmap = self.sprites.get(sprite_name)
+        if pixmap:
             self.sprite_label.setPixmap(pixmap)
 
         text = f"{percent}% {'⚡' if self.charging else ''}"
         self.fade_text_change(text)
-
-        # Handle glow effect for charging
         self.handle_glow_animation()
-        
+
     def fade_text_change(self, new_text):
-        # Smooth fade-out, update, fade-in animation for text.
-        self.animation.stop()
+        fade_out = QPropertyAnimation(self.opacity_effect, b"opacity")
+        fade_out.setDuration(300)
+        fade_out.setStartValue(1.0)
+        fade_out.setEndValue(0.0)
 
-        # Fade out
-        self.animation.setStartValue(1.0)
-        self.animation.setEndValue(0.0)
-        self.animation.setDuration(300)
-        self.animation.finished.connect(lambda: self._update_text(new_text))
-        self.animation.start()
+        fade_in = QPropertyAnimation(self.opacity_effect, b"opacity")
+        fade_in.setDuration(300)
+        fade_in.setStartValue(0.0)
+        fade_in.setEndValue(1.0)
 
+        group = QSequentialAnimationGroup()
+        group.addAnimation(fade_out)
+        group.addPause(100)
+        group.addAnimation(fade_in)
 
-    def _update_text(self, new_text):
-        self.text_overlay.setText(new_text)
+        fade_out.finished.connect(lambda: self.text_overlay.setText(new_text))
+        group.start()
 
-        # Disconnect old connections to avoid stacking animations
-        try:
-            self.animation.finished.disconnect()
-        except Exception:
-            pass
-        
-        # Fade back in
-        self.animation.setStartValue(0.0)
-        self.animation.setEndValue(1.0)
-        self.animation.setDuration(300)
-        self.animation.start()
-        
     def handle_glow_animation(self):
-        # Start or stop the glowing animation depending on charging state.
+        if self.sprite_animation and self.sprite_animation.state() == QAbstractAnimation.State.Running:
+            self.sprite_animation.stop()
+
         if self.charging:
-            if not self.sprite_animation.state():
-                self.sprite_animation.stop()
-                self.sprite_animation.setStartValue(0.8)
-                self.sprite_animation.setEndValue(1.0)
-                self.sprite_animation.start()
+            self.sprite_animation = QPropertyAnimation(self.sprite_opacity, b"opacity")
+            self.sprite_animation.setEasingCurve(QEasingCurve.Type.InOutSine)
+            self.sprite_animation.setDuration(1000)
+            self.sprite_animation.setStartValue(0.8)
+            self.sprite_animation.setEndValue(1.0)
+            self.sprite_animation.setLoopCount(-1)
+            self.sprite_animation.start()
         else:
-            if self.sprite_animation.state():
-                self.sprite_animation.stop()
-                self.sprite_opacity.setOpacity(1.0)
+            self.sprite_opacity.setOpacity(1.0)
 
     def choose_sprite(self, percent):
-        if percent >= 90:
-            return "cig_full.png"
-        elif percent >= 75:
-            return "cig_75.png"
-        elif percent >= 50:
-            return "cig_50.png"
-        elif percent >= 25:
-            return "cig_25.png"
-        else:
-            return "cig_0.png"
+        ranges = [
+            (90, "cig_full.png"),
+            (75, "cig_75.png"),
+            (50, "cig_50.png"),
+            (25, "cig_25.png"),
+            (0, "cig_0.png"),
+        ]
+        for threshold, name in ranges:
+            if percent >= threshold:
+                return name
 
     def mousePressEvent(self, event):
-        # Handle clicks and dragging.
-        if event.button() == Qt.MouseButton.LeftButton:
-            # Click → cycle test level
+        if event.button() == Qt.MouseButton.RightButton:
+            self.close()
+        elif event.button() == Qt.MouseButton.LeftButton:
             self.cycle_test_level()
             self.offset = event.pos()
 
     def mouseMoveEvent(self, event):
-        if self.offset is not None and event.buttons() == Qt.MouseButton.LeftButton:
+        if self.offset and event.buttons() == Qt.MouseButton.LeftButton:
             self.move(self.pos() + event.pos() - self.offset)
 
     def mouseReleaseEvent(self, event):
         self.offset = None
 
     def cycle_test_level(self):
-        # Cycle through test battery levels when clicked.
         self.current_test_index = (self.current_test_index + 1) % len(self.test_levels)
         self.update_battery()
 
+    def closeEvent(self, event):
+        self.timer.stop()
+        if self.sprite_animation:
+            self.sprite_animation.stop()
+        event.accept()
+
+
 if __name__ == "__main__":
-    # Detect mode from command-line arguments
     mode = "overlay"
     for arg in sys.argv:
         if arg.startswith("--mode="):
@@ -185,14 +184,11 @@ if __name__ == "__main__":
     app = QApplication(sys.argv)
     widget = CigaretteBatteryWidget()
 
-    # Apply the correct window mode
-    from PyQt6.QtCore import Qt
     flags = Qt.WindowType.FramelessWindowHint | Qt.WindowType.Tool
     if mode == "overlay":
         flags |= Qt.WindowType.WindowStaysOnTopHint
 
     widget.setWindowFlags(flags)
     widget.setAttribute(Qt.WidgetAttribute.WA_TranslucentBackground)
-
     widget.show()
     sys.exit(app.exec())
