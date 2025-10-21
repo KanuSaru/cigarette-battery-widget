@@ -1,15 +1,20 @@
-import sys, os, psutil
+# main.py
+import sys
+import os
+import psutil
 from PyQt6.QtWidgets import (
     QApplication, QWidget, QLabel, QVBoxLayout,
-    QGraphicsOpacityEffect, QGraphicsDropShadowEffect
+    QGraphicsOpacityEffect, QGraphicsDropShadowEffect,
+    QSystemTrayIcon, QMenu, QAction
 )
-from PyQt6.QtGui import QPixmap, QFont
+from PyQt6.QtGui import QPixmap, QFont, QIcon
 from PyQt6.QtCore import (
     Qt, QTimer, QPropertyAnimation, QEasingCurve,
-    QSequentialAnimationGroup, QPauseAnimation, QAbstractAnimation
+    QSequentialAnimationGroup, QAbstractAnimation
 )
 
 SPRITE_SIZE = 128
+TRAY_ICON_SIZE = 64
 
 class CigaretteBatteryWidget(QWidget):
     def __init__(self):
@@ -42,9 +47,11 @@ class CigaretteBatteryWidget(QWidget):
         shadow.setColor(Qt.GlobalColor.black)
         self.text_overlay.setGraphicsEffect(shadow)
 
+        # Keep an opacity effect for fade animations
         self.opacity_effect = QGraphicsOpacityEffect()
         self.text_overlay.setGraphicsEffect(self.opacity_effect)
 
+        # Sprite opacity for glow animation
         self.sprite_opacity = QGraphicsOpacityEffect()
         self.sprite_label.setGraphicsEffect(self.sprite_opacity)
 
@@ -57,10 +64,17 @@ class CigaretteBatteryWidget(QWidget):
         self.asset_path = os.path.join(os.path.dirname(__file__), "assets")
         self.sprites = self.load_sprites()
 
+        # Tray (created after sprites loaded so we can use an icon)
+        self.tray = None
+        self.create_tray()
+
+        # Modes and state
         self.test_mode = False
         self.test_levels = [0, 25, 50, 75, 100]
         self.current_test_index = 0
+        self.charging = False
 
+        # Timer to poll battery
         self.timer = QTimer()
         self.timer.timeout.connect(self.update_battery)
         self.timer.start(5000)
@@ -81,6 +95,75 @@ class CigaretteBatteryWidget(QWidget):
                     Qt.TransformationMode.SmoothTransformation
                 )
         return sprites
+
+    def create_tray(self):
+        # Choose a tray icon from sprites if available
+        icon = None
+        fallback_pixmap = None
+        for key in ("cig_full.png", "cig_75.png", "cig_50.png", "cig_25.png", "cig_0.png"):
+            pm = self.sprites.get(key)
+            if pm is not None:
+                fallback_pixmap = pm.scaled(TRAY_ICON_SIZE, TRAY_ICON_SIZE,
+                                            Qt.AspectRatioMode.KeepAspectRatio,
+                                            Qt.TransformationMode.SmoothTransformation)
+                break
+
+        if fallback_pixmap is not None:
+            icon = QIcon(fallback_pixmap)
+        else:
+            # QIcon.fromTheme may or may not return something cross-platform; it's fine as fallback
+            icon = QIcon.fromTheme("battery") or QIcon()
+
+        tray = QSystemTrayIcon(icon, self)
+        menu = QMenu()
+
+        self.action_show_hide = QAction("Hide" if self.isVisible() else "Show", self)
+        self.action_show_hide.triggered.connect(self.toggle_visibility)
+        menu.addAction(self.action_show_hide)
+
+        self.action_toggle_test = QAction("Enable Test Mode" if not self.test_mode else "Disable Test Mode", self)
+        self.action_toggle_test.triggered.connect(self.toggle_test_mode)
+        menu.addAction(self.action_toggle_test)
+
+        menu.addSeparator()
+        quit_action = QAction("Quit", self)
+        quit_action.triggered.connect(self.quit_app)
+        menu.addAction(quit_action)
+
+        tray.setContextMenu(menu)
+        tray.activated.connect(self._tray_activated)
+        tray.setVisible(True)
+        self.tray = tray
+
+    def _tray_activated(self, reason):
+        # Left click toggles visibility
+        if reason == QSystemTrayIcon.ActivationReason.Trigger:
+            self.toggle_visibility()
+
+    def toggle_visibility(self):
+        if self.isVisible():
+            self.hide()
+            if self.tray:
+                self.action_show_hide.setText("Show")
+        else:
+            self.show()
+            if self.tray:
+                self.action_show_hide.setText("Hide")
+
+    def toggle_test_mode(self):
+        self.test_mode = not self.test_mode
+        if self.tray:
+            self.action_toggle_test.setText("Disable Test Mode" if self.test_mode else "Enable Test Mode")
+        self.update_battery()
+
+    def quit_app(self):
+        # Clean up and exit
+        self.timer.stop()
+        if self.sprite_animation:
+            self.sprite_animation.stop()
+        if self.tray:
+            self.tray.setVisible(False)
+        QApplication.quit()
 
     def update_battery(self):
         if self.test_mode:
@@ -117,6 +200,7 @@ class CigaretteBatteryWidget(QWidget):
 
         group = QSequentialAnimationGroup()
         group.addAnimation(fade_out)
+        # small pause; addPause is available and doesn't require extra import
         group.addPause(100)
         group.addAnimation(fade_in)
 
@@ -152,7 +236,10 @@ class CigaretteBatteryWidget(QWidget):
 
     def mousePressEvent(self, event):
         if event.button() == Qt.MouseButton.RightButton:
-            self.close()
+            # hide to tray rather than quit
+            self.hide()
+            if self.tray:
+                self.action_show_hide.setText("Show")
         elif event.button() == Qt.MouseButton.LeftButton:
             self.cycle_test_level()
             self.offset = event.pos()
@@ -169,10 +256,11 @@ class CigaretteBatteryWidget(QWidget):
         self.update_battery()
 
     def closeEvent(self, event):
-        self.timer.stop()
-        if self.sprite_animation:
-            self.sprite_animation.stop()
-        event.accept()
+        # hide to tray instead of fully exiting; quit via tray menu
+        event.ignore()
+        self.hide()
+        if self.tray:
+            self.action_show_hide.setText("Show")
 
 
 if __name__ == "__main__":
