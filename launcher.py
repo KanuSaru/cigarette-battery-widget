@@ -1,4 +1,4 @@
-import sys, os, subprocess
+import sys, os, subprocess, psutil
 from PyQt6.QtWidgets import QApplication, QWidget, QVBoxLayout, QPushButton, QLabel
 from PyQt6.QtCore import Qt
 
@@ -36,7 +36,24 @@ class Launcher(QWidget):
         layout.addWidget(wallpaper_btn)
         self.setLayout(layout)
 
+    def is_already_running(self):
+        """Check if main.py is already running."""
+        current_pid = os.getpid()
+        for proc in psutil.process_iter(['pid', 'cmdline']):
+            try:
+                if proc.info['pid'] != current_pid and proc.info['cmdline']:
+                    if 'python' in proc.info['cmdline'][0].lower() and 'main.py' in proc.info['cmdline'][-1]:
+                        return True
+            except (psutil.NoSuchProcess, psutil.AccessDenied):
+                continue
+        return False
+
     def launch(self, mode):
+        if self.is_already_running():
+            print("Widget is already running.")
+            self.close()
+            return
+
         main_path = os.path.join(os.path.dirname(__file__), "main.py")
 
         if sys.platform == "win32":
