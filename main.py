@@ -212,6 +212,21 @@ class CigaretteBatteryWidget(QWidget):
         self.test_action.setText("Disable Test Mode" if self.test_mode else "Enable Test Mode")
         self.update_battery()
 
+    def contextMenuEvent(self, event):
+        menu = QMenu(self)
+
+        toggle_action = menu.addAction("Hide Widget" if self.isVisible() else "Show Widget")
+        toggle_action.triggered.connect(self.toggle_visibility)
+
+        test_action = menu.addAction("Disable Test Mode" if self.test_mode else "Enable Test Mode")
+        test_action.triggered.connect(self.toggle_test_mode)
+
+        exit_action = menu.addAction("Exit")
+        exit_action.triggered.connect(QApplication.quit)
+
+        menu.exec(event.globalPos())
+
+
 
 # =====================================================
 # Entry Point
