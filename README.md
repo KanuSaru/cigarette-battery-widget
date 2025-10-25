@@ -93,7 +93,7 @@ battery_widget/
 
 ## Requirements
 
-* Python 3.10+
+* Python 3.10 - 3.13
 * PyQt6
 * psutil
 
