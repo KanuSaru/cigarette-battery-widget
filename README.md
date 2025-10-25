@@ -56,7 +56,7 @@ battery_widget/
 
 ## Installation
 
-1. Make sure you have Python 3.10 or newer installed.
+1. Make sure you have Python 3.10 - 3.13.
 2. Install dependencies:
 
    ```bash
